@@ -2,116 +2,150 @@ package student_management;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.*;
 import java.sql.*;
 
 public class StudentManagementUI extends JFrame {
-    private JTextField nameField, courseField, ageField;
-    private JButton addButton, viewButton, deleteButton;
-    private JTextArea outputArea;
+
+    private JTextField nameField, courseField, ageField, ratingField, contactField, emailField, qualificationField, subjectsField;
+    private JTextArea feedbackArea;
+    private JButton addButton;
+
+    // Admin login fields
+    private JTextField adminUserField;
+    private JPasswordField adminPassField;
+    private JButton adminLoginButton;
 
     public StudentManagementUI() {
-        setTitle("Student Management System");
-        setSize(500, 400);
+
+        setTitle("Student Survey & Admin Management System");
+        setSize(950, 650);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
-        setLayout(new BorderLayout());
+        setLayout(new GridLayout(1, 2));
 
-        // 🔹 Input Panel
-        JPanel inputPanel = new JPanel(new GridLayout(4, 2, 10, 10));
-        inputPanel.setBorder(BorderFactory.createTitledBorder("Add Student"));
+        // ================= LEFT SIDE = STUDENT FORM PANEL ===================
+        JPanel studentPanel = new JPanel(new GridLayout(11, 2, 10, 10));
+        studentPanel.setBorder(BorderFactory.createTitledBorder("Student Survey Form"));
 
-        inputPanel.add(new JLabel("Name:"));
         nameField = new JTextField();
-        inputPanel.add(nameField);
-
-        inputPanel.add(new JLabel("Course:"));
         courseField = new JTextField();
-        inputPanel.add(courseField);
-
-        inputPanel.add(new JLabel("Age:"));
         ageField = new JTextField();
-        inputPanel.add(ageField);
+        ratingField = new JTextField();
+        feedbackArea = new JTextArea(2, 20);
+        contactField = new JTextField();
+        emailField = new JTextField();
+        qualificationField = new JTextField();
+        subjectsField = new JTextField();
+
+        studentPanel.add(new JLabel("Name:"));
+        studentPanel.add(nameField);
+
+        studentPanel.add(new JLabel("Course:"));
+        studentPanel.add(courseField);
+
+        studentPanel.add(new JLabel("Age:"));
+        studentPanel.add(ageField);
+
+        studentPanel.add(new JLabel("Rating (1-5):"));
+        studentPanel.add(ratingField);
+
+        studentPanel.add(new JLabel("Feedback:"));
+        studentPanel.add(new JScrollPane(feedbackArea));
+
+        studentPanel.add(new JLabel("Contact Number:"));
+        studentPanel.add(contactField);
+
+        studentPanel.add(new JLabel("Email:"));
+        studentPanel.add(emailField);
+
+        studentPanel.add(new JLabel("Qualification:"));
+        studentPanel.add(qualificationField);
+
+        studentPanel.add(new JLabel("Interested Subjects:"));
+        studentPanel.add(subjectsField);
 
         addButton = new JButton("Add Student");
-        inputPanel.add(addButton);
+        studentPanel.add(addButton);
 
-        add(inputPanel, BorderLayout.NORTH);
+        add(studentPanel);
 
-        // 🔹 Output Area
-        outputArea = new JTextArea();
-        outputArea.setEditable(false);
-        add(new JScrollPane(outputArea), BorderLayout.CENTER);
-
-        // 🔹 Button Panel
-        JPanel buttonPanel = new JPanel();
-        viewButton = new JButton("View Students");
-        deleteButton = new JButton("Delete Student");
-        buttonPanel.add(viewButton);
-        buttonPanel.add(deleteButton);
-        add(buttonPanel, BorderLayout.SOUTH);
-
-        // 🔹 Button actions
+        // ACTION
         addButton.addActionListener(e -> addStudent());
-        viewButton.addActionListener(e -> viewStudents());
-        deleteButton.addActionListener(e -> deleteStudent());
+
+        // =============== RIGHT SIDE = ADMIN LOGIN PANEL ====================
+        JPanel adminPanel = new JPanel(new GridLayout(6, 1, 10, 10));
+        adminPanel.setBorder(BorderFactory.createTitledBorder("Admin Login"));
+
+        adminUserField = new JTextField();
+        adminPassField = new JPasswordField();
+        adminLoginButton = new JButton("Login");
+
+        adminPanel.add(new JLabel("Admin Username:"));
+        adminPanel.add(adminUserField);
+
+        adminPanel.add(new JLabel("Admin Password:"));
+        adminPanel.add(adminPassField);
+
+        adminPanel.add(adminLoginButton);
+
+        add(adminPanel);
+
+        // LOGIN ACTION
+        adminLoginButton.addActionListener(e -> checkAdminLogin());
     }
 
+    // ==================== ADD STUDENT ======================
     private void addStudent() {
-        String name = nameField.getText();
-        String course = courseField.getText();
-        String ageText = ageField.getText();
+        try {
+            Connection conn = DBConnection.getConnection();
+            String sql = "INSERT INTO student(name, course, age, rating, feedback, contact, email, qualification, subjects) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            PreparedStatement stmt = conn.prepareStatement(sql);
 
-        if (name.isEmpty() || course.isEmpty() || ageText.isEmpty()) {
-            JOptionPane.showMessageDialog(this, "Please fill all fields!");
-            return;
-        }
+            stmt.setString(1, nameField.getText());
+            stmt.setString(2, courseField.getText());
+            stmt.setInt(3, Integer.parseInt(ageField.getText()));
+            stmt.setInt(4, Integer.parseInt(ratingField.getText()));
+            stmt.setString(5, feedbackArea.getText());
+            stmt.setString(6, contactField.getText());
+            stmt.setString(7, emailField.getText());
+            stmt.setString(8, qualificationField.getText());
+            stmt.setString(9, subjectsField.getText());
 
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement("INSERT INTO students(name, course, age) VALUES (?, ?, ?)")) {
-
-            stmt.setString(1, name);
-            stmt.setString(2, course);
-            stmt.setInt(3, Integer.parseInt(ageText));
             stmt.executeUpdate();
-            JOptionPane.showMessageDialog(this, "Student added successfully!");
-            nameField.setText("");
-            courseField.setText("");
-            ageField.setText("");
+            JOptionPane.showMessageDialog(this, "Student Added Successfully!");
+
+            clearFields();
+
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
         }
     }
 
-    private void viewStudents() {
-        try (Connection conn = DBConnection.getConnection();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery("SELECT * FROM students")) {
-
-            outputArea.setText("ID\tName\tCourse\tAge\n-----------------------------------\n");
-            while (rs.next()) {
-                outputArea.append(rs.getInt("id") + "\t" +
-                        rs.getString("name") + "\t" +
-                        rs.getString("course") + "\t" +
-                        rs.getInt("age") + "\n");
-            }
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
-        }
+    private void clearFields() {
+        nameField.setText("");
+        courseField.setText("");
+        ageField.setText("");
+        ratingField.setText("");
+        feedbackArea.setText("");
+        contactField.setText("");
+        emailField.setText("");
+        qualificationField.setText("");
+        subjectsField.setText("");
     }
 
-    private void deleteStudent() {
-        String id = JOptionPane.showInputDialog(this, "Enter student ID to delete:");
-        if (id == null || id.isEmpty()) return;
+    // ==================== ADMIN LOGIN ======================
+    private void checkAdminLogin() {
 
-        try (Connection conn = DBConnection.getConnection();
-             PreparedStatement stmt = conn.prepareStatement("DELETE FROM students WHERE id = ?")) {
+        String user = adminUserField.getText();
+        String pass = new String(adminPassField.getPassword());
 
-            stmt.setInt(1, Integer.parseInt(id));
-            int rows = stmt.executeUpdate();
-            JOptionPane.showMessageDialog(this, rows > 0 ? "Student deleted!" : "ID not found!");
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Error: " + ex.getMessage());
+        boolean loggedIn = Admin.login(user, pass);
+
+        if (loggedIn) {
+            JOptionPane.showMessageDialog(this, "Login Successful!");
+            new AdminDashboard().setVisible(true);
+        } else {
+            JOptionPane.showMessageDialog(this, "Invalid Username or Password!");
         }
     }
 
